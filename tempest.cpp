@@ -150,13 +150,58 @@ namespace tempest
 		return request;
 	}
 
+	struct http_response
+	{
+		std::string version;
+		unsigned status;
+		std::string reason;
+		std::map<std::string, std::string> headers;
+		std::string body;
+	};
+
+	void print_response(http_response const &response, std::ostream &out)
+	{
+		out << response.version << ' '
+		    << response.status << ' '
+		    << response.reason << "\r\n";
+		for (auto const &header : response.headers)
+		{
+			out << header.first << ": " << header.second << "\r\n";
+		}
+		out << "\r\n";
+		out << response.body;
+	}
+
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client)
 	{
 		try
 		{
-			std::cerr << "incoming connection\n";
 			http_request request = parse_request(client->request());
-			request;
+
+			http_response response;
+			response.version = "HTTP/1.1";
+			response.status = 200;
+			response.reason = "OK";
+			response.headers["Content-Type"] = "text/html";
+
+			response.body =
+			        "<h2>Hello, World!</h2>"
+			        "<p>" + request.method +
+			        " " + request.file +
+			        " " + request.version + "</p>"
+			        ;
+
+			response.body += "<ul>";
+			for (auto const &header : request.headers)
+			{
+				response.body += "<li>" + header.first + ": " + header.second;
+			}
+			response.body += "</ul>";
+
+			response.headers["Content-Length"] =
+			        boost::lexical_cast<std::string>(response.body.size());
+			print_response(response, client->response());
+			client->response().flush();
 		}
 		catch (std::exception const &ex)
 		{
