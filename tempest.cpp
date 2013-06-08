@@ -9,6 +9,9 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/device/file_descriptor.hpp>
+#include <boost/make_shared.hpp>
 #include <memory>
 #include <fstream>
 
@@ -33,6 +36,7 @@ namespace tempest
 		virtual std::istream &request() = 0;
 		virtual std::ostream &response() = 0;
 		virtual boost::optional<int> posix_response() = 0;
+		virtual void shutdown() = 0;
 	};
 
 	abstract_client::~abstract_client()
@@ -45,6 +49,7 @@ namespace tempest
 		virtual std::istream &request() override;
 		virtual std::ostream &response() override;
 		virtual boost::optional<int> posix_response() override;
+		virtual void shutdown() override;
 
 	private:
 
@@ -75,6 +80,12 @@ namespace tempest
 		return boost::optional<int>();
 #endif
 	}
+
+	void tcp_client::shutdown()
+	{
+		m_stream->rdbuf()->shutdown(boost::asio::socket_base::shutdown_both);
+	}
+
 
 	struct tcp_acceptor
 	{
@@ -151,7 +162,8 @@ namespace tempest
 		return response;
 	}
 
-	http_response make_not_found_response(std::string const &requested_file)
+	std::pair<http_response, std::string>
+	make_not_found_response(std::string const &requested_file)
 	{
 		http_response response;
 		response.version = "HTTP/1.1";
@@ -159,17 +171,18 @@ namespace tempest
 		response.reason = "Not Found";
 		response.headers["Content-Type"] = "text/html";
 
-		response.body =
+		std::string body =
 		        "<h2>The requested file could not be found</h2>"
 		        "<p>" + requested_file + "</p>"
 		        ;
 
 		response.headers["Content-Length"] =
-		        boost::lexical_cast<std::string>(response.body.size());
-		return response;
+		        boost::lexical_cast<std::string>(body.size());
+		return std::make_pair(std::move(response), std::move(body));
 	}
 
-	http_response make_not_implemented_response(std::string const &requested_file)
+	std::pair<http_response, std::string>
+	make_not_implemented_response(std::string const &requested_file)
 	{
 		http_response response;
 		response.version = "HTTP/1.1";
@@ -177,30 +190,25 @@ namespace tempest
 		response.reason = "Not Implemented";
 		response.headers["Content-Type"] = "text/html";
 
-		response.body =
+		std::string body =
 		        "<h2>could not serve the file because some required "
 		        "functionality is not implemented in the web server</h2>"
 		        "<p>" + requested_file + "</p>"
 		        ;
 
 		response.headers["Content-Length"] =
-		        boost::lexical_cast<std::string>(response.body.size());
-		return response;
+		        boost::lexical_cast<std::string>(body.size());
+		return std::make_pair(std::move(response), std::move(body));
 	}
 
-	http_response make_file_response(std::istream &content,
-	                                 std::size_t file_size)
+	void send_in_memory_response(
+		std::pair<http_response, std::string> const &response,
+		abstract_client &client)
 	{
-		http_response response;
-		response.headers["Content-Length"] =
-		        boost::lexical_cast<std::string>(file_size);
-		response.status = 200;
-		response.reason = "OK";
-		response.version = "HTTP/1.1";
-		std::copy_n(std::istreambuf_iterator<char>(content),
-		            file_size,
-		            std::back_inserter(response.body));
-		return response;
+		print_response(response.first, client.response());
+
+		auto &body = response.second;
+		client.response().write(body.data(), body.size());
 	}
 
 	struct directory
@@ -347,6 +355,14 @@ namespace tempest
 		}
 
 
+		void copy_file(int source, std::ostream &sink)
+		{
+			boost::iostreams::file_descriptor_source
+			        source_device(source,
+			                      boost::iostreams::never_close_handle);
+			boost::iostreams::copy(source_device, sink);
+		}
+
 		struct file_system_directory : directory
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
@@ -369,7 +385,7 @@ namespace tempest
 			if (request.method != "GET" &&
 			    request.method != "POST")
 			{
-				return print_response(make_not_implemented_response(request.file), client.response());
+				return send_in_memory_response(make_not_implemented_response(request.file), client);
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -377,7 +393,7 @@ namespace tempest
 
 			if (!full_path)
 			{
-				return print_response(make_not_found_response(request.file), client.response());
+				return send_in_memory_response(make_not_found_response(request.file), client);
 			}
 
 			file_handle file = open_read(full_path->string());
@@ -385,12 +401,12 @@ namespace tempest
 
 			if (status.size > std::numeric_limits<std::size_t>::max())
 			{
-				return print_response(make_not_implemented_response(request.file), client.response());
+				return send_in_memory_response(make_not_implemented_response(request.file), client);
 			}
 
 			if (!status.is_regular)
 			{
-				return print_response(make_not_found_response(request.file), client.response());
+				return send_in_memory_response(make_not_found_response(request.file), client);
 			}
 
 			http_response response;
@@ -400,12 +416,12 @@ namespace tempest
 			response.reason = "OK";
 			response.version = "HTTP/1.1";
 
+			print_response(response, client.response());
+
 			boost::optional<int> const client_fd = client.posix_response();
 			if (client_fd)
 			{
-				print_response_header(response, client.response());
 				client.response().flush();
-
 				file_size sent = file.send_to(*client_fd, status.size);
 				if (sent != status.size)
 				{
@@ -414,12 +430,12 @@ namespace tempest
 			}
 			else
 			{
-				print_response(response, client.response());
+				copy_file(file.handle(), client.response());
+				client.response().flush();
 			}
 		}
 	}
 #endif
-
 
 	namespace portable
 	{
@@ -445,7 +461,7 @@ namespace tempest
 			if (request.method != "GET" &&
 				request.method != "POST")
 			{
-				return print_response(make_not_implemented_response(request.file), client.response());
+				return send_in_memory_response(make_not_implemented_response(request.file), client);
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -454,52 +470,60 @@ namespace tempest
 			if (!full_path ||
 					!boost::filesystem::is_regular(*full_path))
 			{
-				return print_response(make_not_found_response(request.file), client.response());
+				return send_in_memory_response(make_not_found_response(request.file), client);
 			}
 
 			std::ifstream file(full_path->string(),
 							   std::ios::binary);
 			if (!file)
 			{
-				return print_response(make_not_found_response(request.file), client.response());
+				return send_in_memory_response(make_not_found_response(request.file), client);
 			}
 
-			file.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
+			file.exceptions(std::ios::failbit | std::ios::badbit);
 
 			auto const file_size = boost::filesystem::file_size(*full_path);
 			if (file_size > std::numeric_limits<std::size_t>::max())
 			{
-				return print_response(make_not_implemented_response(request.file), client.response());
+				return send_in_memory_response(make_not_implemented_response(request.file), client);
 			}
 
-			auto const response = make_file_response(file, file_size);
-			return print_response(response, client.response());
+			http_response response;
+			response.version = "HTTP/1.1";
+			response.status = 200;
+			response.reason = "OK";
+			response.headers["Content-Length"] =
+			        boost::lexical_cast<std::string>(file_size);
+
+			print_response(response, client.response());
+			boost::iostreams::copy(file, client.response());
+			client.response().flush();
 		}
 	}
 
+	typedef
+#if TEMPEST_USE_POSIX
+		posix::file_system_directory
+#else
+		portable::file_system_directory
+#endif
+		optimal_file_system_directory;
+
 
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client,
-	                             boost::filesystem::path const &directory)
+	                             boost::shared_ptr<directory> directory)
 	{
+		assert(client);
+		assert(directory);
+
 		//We have to catch exceptions before they propagate to
 		//boost::thread because that would terminate the whole process.
 		try
 		{
-			typedef
-#if TEMPEST_USE_POSIX
-				posix::file_system_directory
-#else
-				portable::file_system_directory
-#endif
-			default_directory;
-
 			http_request request = parse_request(client->request());
-			default_directory(directory).respond(request, *client);
+			directory->respond(request, *client);
 
-			while (client->request())
-			{
-				client->request().get();
-			}
+			client->shutdown();
 		}
 		catch (std::exception const &ex)
 		{
@@ -508,7 +532,7 @@ namespace tempest
 	}
 
 	void handle_client(std::unique_ptr<abstract_client> &client,
-	                   boost::filesystem::path const &directory)
+	                   boost::shared_ptr<directory> directory)
 	{
 		boost::shared_ptr<abstract_client> const shared_client(client.release());
 		boost::thread client_thread(handle_request_threaded,
@@ -517,7 +541,7 @@ namespace tempest
 	}
 
 	void run_file_server(boost::uint16_t port,
-	                     boost::filesystem::path directory)
+	                     boost::shared_ptr<directory> directory)
 	{
 		boost::asio::io_service io_service;
 		tcp_acceptor acceptor(port,
@@ -541,6 +565,7 @@ int main(int argc, char **argv)
 	    ("port", po::value(&port), ("the port to listen on (default: " +
 	                                boost::lexical_cast<std::string>(port) + ")").c_str())
 	    ("dir", po::value(&served_directory), "the directory accessible to clients")
+	    ("portable", "avoid possibly platform-specific system calls")
 		;
 
 	po::positional_options_description positions;
@@ -571,6 +596,18 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	bool const favor_portability = variables.count("portable");
 	auto served_directory_absolute = boost::filesystem::canonical(served_directory);
-	tempest::run_file_server(port, std::move(served_directory_absolute));
+
+	boost::shared_ptr<tempest::directory> directory_handler;
+	if (favor_portability)
+	{
+		directory_handler = boost::make_shared<tempest::portable::file_system_directory>(served_directory_absolute);
+	}
+	else
+	{
+		directory_handler = boost::make_shared<tempest::optimal_file_system_directory>(served_directory_absolute);
+	}
+
+	tempest::run_file_server(port, directory_handler);
 }

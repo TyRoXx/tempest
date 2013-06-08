@@ -26,7 +26,6 @@ BOOST_AUTO_TEST_CASE(http_response_print)
 	response.status = 404;
 	response.reason = "Not Found";
 	response.headers["Content-Length"] = "3";
-	response.body = "404";
 
 	std::ostringstream sink;
 	print_response(response, sink);
@@ -36,7 +35,6 @@ BOOST_AUTO_TEST_CASE(http_response_print)
 	                  "HTTP/1.0 404 Not Found\r\n"
 	                  "Content-Length: 3\r\n"
 	                  "\r\n"
-	                  "404"
 	                  );
 }
 

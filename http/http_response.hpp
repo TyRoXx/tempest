@@ -15,10 +15,8 @@ namespace tempest
 		unsigned status;
 		std::string reason;
 		std::map<std::string, std::string> headers;
-		std::string body;
 	};
 
-	void print_response_header(http_response const &response, std::ostream &out);
 	void print_response(http_response const &response, std::ostream &out);
 }
 

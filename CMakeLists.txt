@@ -7,7 +7,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 #Boost is used for testing, networking and multi-threading
-find_package(Boost REQUIRED unit_test_framework system thread program_options filesystem)
+find_package(Boost REQUIRED unit_test_framework system thread program_options filesystem iostreams)
 include_directories(${Boost_INCLUDE_DIR})
 
 #Boost test requires this definition if linked dynamically which we want to do

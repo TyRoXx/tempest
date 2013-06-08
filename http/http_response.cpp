@@ -3,7 +3,7 @@
 
 namespace tempest
 {
-	void print_response_header(http_response const &response, std::ostream &out)
+	void print_response(http_response const &response, std::ostream &out)
 	{
 		//HTTP/1.1 200 OK\r\n
 		out << response.version << ' '
@@ -17,11 +17,5 @@ namespace tempest
 		}
 
 		out << "\r\n";
-	}
-
-	void print_response(http_response const &response, std::ostream &out)
-	{
-		print_response_header(response, out);
-		out << response.body;
 	}
 }
