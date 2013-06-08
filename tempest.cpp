@@ -6,6 +6,7 @@
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 #include <boost/thread.hpp>
+#include <boost/program_options.hpp>
 #include <memory>
 
 namespace tempest
@@ -154,10 +155,37 @@ namespace tempest
 
 int main(int argc, char **argv)
 {
+	namespace po = boost::program_options;
+
 	boost::uint16_t port = 8080;
-	if (argc >= 2)
+
+	po::options_description options("Tempest web server options");
+	options.add_options()
+		("help,h", "produce help message to stdout and exit")
+		("version,v", "print version number to stdout and exit")
+	    ("port", po::value(&port), ("the port to listen on (default: " +
+	                                boost::lexical_cast<std::string>(port) + ")").c_str())
+		;
+
+	po::positional_options_description positions;
+	positions.add("port", 1);
+
+	po::variables_map variables;
+	po::store(po::command_line_parser(argc, argv).options(options).positional(positions).run(),
+	          variables);
+	po::notify(variables);
+
+	if (variables.count("help"))
 	{
-		port = boost::lexical_cast<boost::uint16_t>(argv[1]);
+		std::cout << options << '\n';
+		return 0;
 	}
+
+	if (variables.count("version"))
+	{
+		std::cout << "0.1\n";
+		return 0;
+	}
+
 	tempest::run_tcp_server(port);
 }
