@@ -206,7 +206,8 @@ namespace tempest
 	struct directory
 	{
 		virtual ~directory();
-		virtual http_response respond(http_request const &request) = 0;
+		virtual void respond(http_request const &request,
+		                     abstract_client &client) = 0;
 	};
 
 	directory::~directory()
@@ -303,12 +304,30 @@ namespace tempest
 
 		file_size file_handle::send_to(int destination, file_size byte_count)
 		{
-			ssize_t const sent = sendfile(destination, m_fd, nullptr, byte_count);
-			if (sent >= 0)
+			file_size total_sent = 0;
+			file_size rest = byte_count;
+			while (rest > 0)
 			{
-				return static_cast<file_size>(sent);
+				auto constexpr max_per_piece = std::numeric_limits<ssize_t>::max();
+				static_assert(static_cast<file_size>(max_per_piece) < std::numeric_limits<file_size>::max(),
+				              "any positive ssize_t must be representible with file_size for this to work");
+
+				auto const piece_length = static_cast<size_t>(
+				            std::min<file_size>(max_per_piece, rest));
+
+				ssize_t const sent = sendfile(destination, m_fd, nullptr, piece_length);
+				if (sent >= 0)
+				{
+					file_size const sent_unsigned = static_cast<size_t>(sent);
+					total_sent += sent_unsigned;
+					rest -= sent_unsigned;
+				}
+				else
+				{
+					throw make_errno_exception();
+				}
 			}
-			throw make_errno_exception();
+			return total_sent;
 		}
 
 		int file_handle::handle() const
@@ -331,7 +350,8 @@ namespace tempest
 		struct file_system_directory : directory
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
-			virtual http_response respond(http_request const &request) override;
+			virtual void respond(http_request const &request,
+			                     abstract_client &client) override;
 
 		private:
 
@@ -343,12 +363,13 @@ namespace tempest
 		{
 		}
 
-		http_response file_system_directory::respond(http_request const &request)
+		void file_system_directory::respond(http_request const &request,
+		                                    abstract_client &client)
 		{
 			if (request.method != "GET" &&
 			    request.method != "POST")
 			{
-				return make_not_implemented_response(request.file);
+				return print_response(make_not_implemented_response(request.file), client.response());
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -356,7 +377,7 @@ namespace tempest
 
 			if (!full_path)
 			{
-				return make_not_found_response(request.file);
+				return print_response(make_not_found_response(request.file), client.response());
 			}
 
 			file_handle file = open_read(full_path->string());
@@ -364,12 +385,12 @@ namespace tempest
 
 			if (status.size > std::numeric_limits<std::size_t>::max())
 			{
-				return make_not_implemented_response(request.file);
+				return print_response(make_not_implemented_response(request.file), client.response());
 			}
 
 			if (!status.is_regular)
 			{
-				return make_not_found_response(request.file);
+				return print_response(make_not_found_response(request.file), client.response());
 			}
 
 			http_response response;
@@ -379,23 +400,22 @@ namespace tempest
 			response.reason = "OK";
 			response.version = "HTTP/1.1";
 
-			if (status.size > 0)
+			boost::optional<int> const client_fd = client.posix_response();
+			if (client_fd)
 			{
-				response.body.resize(status.size);
-				ssize_t const read_count =
-						read(file.handle(), &response.body.front(), status.size);
-				if (read_count < 0)
-				{
-					//TODO respond with 500
-					throw make_errno_exception();
-				}
+				print_response_header(response, client.response());
+				client.response().flush();
 
-				if (static_cast<file_size>(read_count) != status.size)
+				file_size sent = file.send_to(*client_fd, status.size);
+				if (sent != status.size)
 				{
-					throw std::runtime_error("Could not read the file at once");
+					throw std::runtime_error("Sending the whole file failed");
 				}
 			}
-			return response;
+			else
+			{
+				print_response(response, client.response());
+			}
 		}
 	}
 #endif
@@ -406,7 +426,8 @@ namespace tempest
 		struct file_system_directory : directory
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
-			virtual http_response respond(http_request const &request) override;
+			virtual void respond(http_request const &request,
+			                     abstract_client &client) override;
 
 		private:
 
@@ -418,12 +439,13 @@ namespace tempest
 		{
 		}
 
-		http_response file_system_directory::respond(http_request const &request)
+		void file_system_directory::respond(http_request const &request,
+		                                    abstract_client &client)
 		{
 			if (request.method != "GET" &&
 				request.method != "POST")
 			{
-				return make_not_implemented_response(request.file);
+				return print_response(make_not_implemented_response(request.file), client.response());
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -432,14 +454,14 @@ namespace tempest
 			if (!full_path ||
 					!boost::filesystem::is_regular(*full_path))
 			{
-				return make_not_found_response(request.file);
+				return print_response(make_not_found_response(request.file), client.response());
 			}
 
 			std::ifstream file(full_path->string(),
 							   std::ios::binary);
 			if (!file)
 			{
-				return make_not_found_response(request.file);
+				return print_response(make_not_found_response(request.file), client.response());
 			}
 
 			file.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
@@ -447,10 +469,11 @@ namespace tempest
 			auto const file_size = boost::filesystem::file_size(*full_path);
 			if (file_size > std::numeric_limits<std::size_t>::max())
 			{
-				return make_not_implemented_response(request.file);
+				return print_response(make_not_implemented_response(request.file), client.response());
 			}
 
-			return make_file_response(file, file_size);
+			auto const response = make_file_response(file, file_size);
+			return print_response(response, client.response());
 		}
 	}
 
@@ -471,9 +494,12 @@ namespace tempest
 			default_directory;
 
 			http_request request = parse_request(client->request());
-			http_response response = default_directory(directory).respond(request);
-			print_response(response, client->response());
-			client->response().flush();
+			default_directory(directory).respond(request, *client);
+
+			while (client->request())
+			{
+				client->request().get();
+			}
 		}
 		catch (std::exception const &ex)
 		{

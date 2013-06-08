@@ -18,6 +18,7 @@ namespace tempest
 		std::string body;
 	};
 
+	void print_response_header(http_response const &response, std::ostream &out);
 	void print_response(http_response const &response, std::ostream &out);
 }
 
