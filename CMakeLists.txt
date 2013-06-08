@@ -13,10 +13,12 @@ include_directories(${Boost_INCLUDE_DIR})
 #Boost test requires this definition if linked dynamically which we want to do
 add_definitions(-DBOOST_TEST_DYN_LINK)
 
+add_subdirectory(http)
+
 #the actual web server application
 add_executable(tempest tempest.cpp)
-target_link_libraries(tempest ${Boost_LIBRARIES})
+target_link_libraries(tempest ${Boost_LIBRARIES} http)
 
 #just some tests
 add_executable(test test.cpp)
-target_link_libraries(test ${Boost_LIBRARIES})
+target_link_libraries(test ${Boost_LIBRARIES} http)
