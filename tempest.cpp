@@ -30,30 +30,55 @@
 
 namespace tempest
 {
+	struct sender
+	{
+		virtual ~sender();
+		virtual std::ostream &response() = 0;
+		virtual boost::optional<int> posix_response() = 0;
+	};
+
+	sender::~sender()
+	{
+	}
+
+	struct receiver
+	{
+		virtual ~receiver();
+		virtual std::istream &request() = 0;
+	};
+
+	receiver::~receiver()
+	{
+	}
+
 	struct abstract_client
 	{
 		virtual ~abstract_client();
-		virtual std::istream &request() = 0;
-		virtual std::ostream &response() = 0;
-		virtual boost::optional<int> posix_response() = 0;
 		virtual void shutdown() = 0;
+		virtual sender &get_sender() = 0;
+		virtual receiver &get_receiver() = 0;
 	};
 
 	abstract_client::~abstract_client()
 	{
 	}
 
-	struct tcp_client : abstract_client
+	struct tcp_client : public abstract_client, private sender, private receiver
 	{
 		explicit tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> socket);
-		virtual std::istream &request() override;
-		virtual std::ostream &response() override;
-		virtual boost::optional<int> posix_response() override;
 		virtual void shutdown() override;
+		virtual sender &get_sender() override;
+		virtual receiver &get_receiver() override;
 
 	private:
 
 		const std::unique_ptr<boost::asio::ip::tcp::iostream> m_stream;
+
+
+		virtual std::ostream &response() override;
+		virtual boost::optional<int> posix_response() override;
+
+		virtual std::istream &request() override;
 	};
 
 	tcp_client::tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> stream)
@@ -61,9 +86,19 @@ namespace tempest
 	{
 	}
 
-	std::istream &tcp_client::request()
+	void tcp_client::shutdown()
 	{
-		return *m_stream;
+		m_stream->rdbuf()->shutdown(boost::asio::socket_base::shutdown_both);
+	}
+
+	sender &tcp_client::get_sender()
+	{
+		return *this;
+	}
+
+	receiver &tcp_client::get_receiver()
+	{
+		return *this;
 	}
 
 	std::ostream &tcp_client::response()
@@ -81,9 +116,9 @@ namespace tempest
 #endif
 	}
 
-	void tcp_client::shutdown()
+	std::istream &tcp_client::request()
 	{
-		m_stream->rdbuf()->shutdown(boost::asio::socket_base::shutdown_both);
+		return *m_stream;
 	}
 
 
@@ -203,19 +238,19 @@ namespace tempest
 
 	void send_in_memory_response(
 		std::pair<http_response, std::string> const &response,
-		abstract_client &client)
+		sender &sender)
 	{
-		print_response(response.first, client.response());
+		print_response(response.first, sender.response());
 
 		auto &body = response.second;
-		client.response().write(body.data(), body.size());
+		sender.response().write(body.data(), body.size());
 	}
 
 	struct directory
 	{
 		virtual ~directory();
 		virtual void respond(http_request const &request,
-		                     abstract_client &client) = 0;
+		                     sender &sender) = 0;
 	};
 
 	directory::~directory()
@@ -367,7 +402,7 @@ namespace tempest
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
 			virtual void respond(http_request const &request,
-			                     abstract_client &client) override;
+			                     sender &sender) override;
 
 		private:
 
@@ -380,12 +415,12 @@ namespace tempest
 		}
 
 		void file_system_directory::respond(http_request const &request,
-		                                    abstract_client &client)
+		                                    sender &sender)
 		{
 			if (request.method != "GET" &&
 			    request.method != "POST")
 			{
-				return send_in_memory_response(make_not_implemented_response(request.file), client);
+				return send_in_memory_response(make_not_implemented_response(request.file), sender);
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -393,7 +428,7 @@ namespace tempest
 
 			if (!full_path)
 			{
-				return send_in_memory_response(make_not_found_response(request.file), client);
+				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
 
 			file_handle file = open_read(full_path->string());
@@ -401,12 +436,12 @@ namespace tempest
 
 			if (status.size > std::numeric_limits<std::size_t>::max())
 			{
-				return send_in_memory_response(make_not_implemented_response(request.file), client);
+				return send_in_memory_response(make_not_implemented_response(request.file), sender);
 			}
 
 			if (!status.is_regular)
 			{
-				return send_in_memory_response(make_not_found_response(request.file), client);
+				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
 
 			http_response response;
@@ -416,12 +451,12 @@ namespace tempest
 			response.reason = "OK";
 			response.version = "HTTP/1.1";
 
-			print_response(response, client.response());
+			print_response(response, sender.response());
 
-			boost::optional<int> const client_fd = client.posix_response();
+			boost::optional<int> const client_fd = sender.posix_response();
 			if (client_fd)
 			{
-				client.response().flush();
+				sender.response().flush();
 				file_size sent = file.send_to(*client_fd, status.size);
 				if (sent != status.size)
 				{
@@ -430,8 +465,8 @@ namespace tempest
 			}
 			else
 			{
-				copy_file(file.handle(), client.response());
-				client.response().flush();
+				copy_file(file.handle(), sender.response());
+				sender.response().flush();
 			}
 		}
 	}
@@ -443,7 +478,7 @@ namespace tempest
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
 			virtual void respond(http_request const &request,
-			                     abstract_client &client) override;
+			                     sender &sender) override;
 
 		private:
 
@@ -456,12 +491,12 @@ namespace tempest
 		}
 
 		void file_system_directory::respond(http_request const &request,
-		                                    abstract_client &client)
+		                                    sender &sender)
 		{
 			if (request.method != "GET" &&
 				request.method != "POST")
 			{
-				return send_in_memory_response(make_not_implemented_response(request.file), client);
+				return send_in_memory_response(make_not_implemented_response(request.file), sender);
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
@@ -470,14 +505,14 @@ namespace tempest
 			if (!full_path ||
 					!boost::filesystem::is_regular(*full_path))
 			{
-				return send_in_memory_response(make_not_found_response(request.file), client);
+				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
 
 			std::ifstream file(full_path->string(),
 							   std::ios::binary);
 			if (!file)
 			{
-				return send_in_memory_response(make_not_found_response(request.file), client);
+				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
 
 			file.exceptions(std::ios::failbit | std::ios::badbit);
@@ -485,7 +520,7 @@ namespace tempest
 			auto const file_size = boost::filesystem::file_size(*full_path);
 			if (file_size > std::numeric_limits<std::size_t>::max())
 			{
-				return send_in_memory_response(make_not_implemented_response(request.file), client);
+				return send_in_memory_response(make_not_implemented_response(request.file), sender);
 			}
 
 			http_response response;
@@ -495,9 +530,9 @@ namespace tempest
 			response.headers["Content-Length"] =
 			        boost::lexical_cast<std::string>(file_size);
 
-			print_response(response, client.response());
-			boost::iostreams::copy(file, client.response());
-			client.response().flush();
+			print_response(response, sender.response());
+			boost::iostreams::copy(file, sender.response());
+			sender.response().flush();
 		}
 	}
 
@@ -520,8 +555,8 @@ namespace tempest
 		//boost::thread because that would terminate the whole process.
 		try
 		{
-			http_request request = parse_request(client->request());
-			directory->respond(request, *client);
+			http_request request = parse_request(client->get_receiver().request());
+			directory->respond(request, client->get_sender());
 
 			client->shutdown();
 		}
