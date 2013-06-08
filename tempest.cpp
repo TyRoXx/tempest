@@ -8,6 +8,8 @@
 #include <boost/function.hpp>
 #include <boost/thread.hpp>
 #include <boost/program_options.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <memory>
 
 namespace tempest
@@ -139,17 +141,21 @@ namespace tempest
 		}
 	}
 
-	void handle_client(std::unique_ptr<abstract_client> &client)
+	void handle_client(std::unique_ptr<abstract_client> &client,
+	                   boost::filesystem::path const &directory)
 	{
 		boost::shared_ptr<abstract_client> const shared_client(client.release());
 		boost::thread client_thread(handle_request_threaded, shared_client);
 		client_thread.detach();
 	}
 
-	void run_tcp_server(boost::uint16_t port)
+	void run_file_server(boost::uint16_t port,
+	                     boost::filesystem::path directory)
 	{
 		boost::asio::io_service io_service;
-		tcp_acceptor acceptor(port, handle_client, io_service);
+		tcp_acceptor acceptor(port,
+		                      boost::bind(handle_client, _1, directory),
+		                      io_service);
 		io_service.run();
 	}
 }
@@ -159,6 +165,7 @@ int main(int argc, char **argv)
 	namespace po = boost::program_options;
 
 	boost::uint16_t port = 8080;
+	std::string served_directory;
 
 	po::options_description options("Tempest web server options");
 	options.add_options()
@@ -166,9 +173,11 @@ int main(int argc, char **argv)
 		("version,v", "print version number to stdout and exit")
 	    ("port", po::value(&port), ("the port to listen on (default: " +
 	                                boost::lexical_cast<std::string>(port) + ")").c_str())
+	    ("dir", po::value(&served_directory), "the directory accessible to clients")
 		;
 
 	po::positional_options_description positions;
+	positions.add("dir", 1);
 	positions.add("port", 1);
 
 	po::variables_map variables;
@@ -188,5 +197,13 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	tempest::run_tcp_server(port);
+	if (!variables.count("dir"))
+	{
+		std::cout << "'dir' argument required\n\n";
+		std::cout << options << '\n';
+		return 1;
+	}
+
+	auto served_directory_absolute = boost::filesystem::canonical(served_directory);
+	tempest::run_file_server(port, std::move(served_directory_absolute));
 }
