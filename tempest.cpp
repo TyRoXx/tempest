@@ -178,8 +178,32 @@ namespace tempest
 		return response;
 	}
 
-	http_response respond(http_request const &request,
-	                      boost::filesystem::path const &top)
+	struct directory
+	{
+		virtual ~directory();
+		virtual http_response respond(http_request const &request) = 0;
+	};
+
+	directory::~directory()
+	{
+	}
+
+	struct file_system_directory : directory
+	{
+		explicit file_system_directory(boost::filesystem::path dir);
+		virtual http_response respond(http_request const &request) override;
+
+	private:
+
+		const boost::filesystem::path m_dir;
+	};
+
+	file_system_directory::file_system_directory(boost::filesystem::path dir)
+	    : m_dir(std::move(dir))
+	{
+	}
+
+	http_response file_system_directory::respond(http_request const &request)
 	{
 		if (request.method != "GET" &&
 		    request.method != "POST")
@@ -188,7 +212,7 @@ namespace tempest
 		}
 
 		boost::optional<boost::filesystem::path> const full_path =
-		        complete_served_path(top, request.file);
+		        complete_served_path(m_dir, request.file);
 
 		if (!full_path ||
 		        !boost::filesystem::is_regular(*full_path))
@@ -222,7 +246,7 @@ namespace tempest
 		try
 		{
 			http_request request = parse_request(client->request());
-			http_response response = respond(request, directory);
+			http_response response = file_system_directory(directory).respond(request);
 			print_response(response, client->response());
 			client->response().flush();
 		}
