@@ -11,6 +11,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <memory>
 #include <fstream>
+#include <sys/sendfile.h>
 
 namespace tempest
 {
@@ -19,6 +20,7 @@ namespace tempest
 		virtual ~abstract_client();
 		virtual std::istream &request() = 0;
 		virtual std::ostream &response() = 0;
+		virtual boost::optional<int> posix_response() = 0;
 	};
 
 	abstract_client::~abstract_client()
@@ -30,6 +32,7 @@ namespace tempest
 		explicit tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> socket);
 		virtual std::istream &request() override;
 		virtual std::ostream &response() override;
+		virtual boost::optional<int> posix_response() override;
 
 	private:
 
@@ -49,6 +52,16 @@ namespace tempest
 	std::ostream &tcp_client::response()
 	{
 		return *m_stream;
+	}
+
+	boost::optional<int> tcp_client::posix_response()
+	{
+#ifdef __linux__
+		int const fd = m_stream->rdbuf()->native_handle();
+		return fd;
+#else
+		return boost::optional<int>();
+#endif
 	}
 
 	struct tcp_acceptor
@@ -188,54 +201,113 @@ namespace tempest
 	{
 	}
 
-	struct file_system_directory : directory
+	typedef boost::uintmax_t file_size;
+
+	namespace posix
 	{
-		explicit file_system_directory(boost::filesystem::path dir);
-		virtual http_response respond(http_request const &request) override;
-
-	private:
-
-		const boost::filesystem::path m_dir;
-	};
-
-	file_system_directory::file_system_directory(boost::filesystem::path dir)
-	    : m_dir(std::move(dir))
-	{
-	}
-
-	http_response file_system_directory::respond(http_request const &request)
-	{
-		if (request.method != "GET" &&
-		    request.method != "POST")
+		struct file_handle final : boost::noncopyable
 		{
-			return make_not_implemented_response(request.file);
+			explicit file_handle(int fd);
+			~file_handle();
+			file_size get_size();
+			file_size send_to(int destination, file_size byte_count);
+
+		private:
+
+			int m_fd;
+		};
+
+		file_handle::file_handle(int fd)
+			: m_fd(fd)
+		{
 		}
 
-		boost::optional<boost::filesystem::path> const full_path =
-		        complete_served_path(m_dir, request.file);
-
-		if (!full_path ||
-		        !boost::filesystem::is_regular(*full_path))
+		file_handle::~file_handle()
 		{
-			return make_not_found_response(request.file);
+			if (m_fd >= 0)
+			{
+				close(m_fd);
+			}
 		}
 
-		std::ifstream file(full_path->string(),
-		                   std::ios::binary);
-		if (!file)
+		namespace
 		{
-			return make_not_found_response(request.file);
+			boost::system::system_error make_errno_exception()
+			{
+				return boost::system::system_error(errno, boost::system::posix_category);
+			}
 		}
 
-		file.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
-
-		auto const file_size = boost::filesystem::file_size(*full_path);
-		if (file_size > std::numeric_limits<std::size_t>::max())
+		file_size file_handle::get_size()
 		{
-			return make_not_implemented_response(request.file);
+			struct stat64 s;
+			if (fstat64(m_fd, &s) == 0)
+			{
+				return s.st_size;
+			}
+			throw make_errno_exception();
 		}
 
-		return make_file_response(file, file_size);
+		file_size file_handle::send_to(int destination, file_size byte_count)
+		{
+			ssize_t const sent = sendfile(destination, m_fd, nullptr, byte_count);
+			if (sent >= 0)
+			{
+				return static_cast<file_size>(sent);
+			}
+			throw make_errno_exception();
+		}
+
+
+		struct file_system_directory : directory
+		{
+			explicit file_system_directory(boost::filesystem::path dir);
+			virtual http_response respond(http_request const &request) override;
+
+		private:
+
+			const boost::filesystem::path m_dir;
+		};
+
+		file_system_directory::file_system_directory(boost::filesystem::path dir)
+		    : m_dir(std::move(dir))
+		{
+		}
+
+		http_response file_system_directory::respond(http_request const &request)
+		{
+			if (request.method != "GET" &&
+			    request.method != "POST")
+			{
+				return make_not_implemented_response(request.file);
+			}
+
+			boost::optional<boost::filesystem::path> const full_path =
+			        complete_served_path(m_dir, request.file);
+
+			if (!full_path ||
+			        !boost::filesystem::is_regular(*full_path))
+			{
+				return make_not_found_response(request.file);
+			}
+
+			std::ifstream file(full_path->string(),
+			                   std::ios::binary);
+			if (!file)
+			{
+				return make_not_found_response(request.file);
+			}
+
+			file.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
+
+			auto const file_size = boost::filesystem::file_size(*full_path);
+			if (file_size > std::numeric_limits<std::size_t>::max())
+			{
+				return make_not_implemented_response(request.file);
+			}
+
+			return make_file_response(file, file_size);
+		}
 	}
 
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client,
@@ -246,7 +318,7 @@ namespace tempest
 		try
 		{
 			http_request request = parse_request(client->request());
-			http_response response = file_system_directory(directory).respond(request);
+			http_response response = posix::file_system_directory(directory).respond(request);
 			print_response(response, client->response());
 			client->response().flush();
 		}
