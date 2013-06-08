@@ -11,7 +11,19 @@
 #include <boost/filesystem/operations.hpp>
 #include <memory>
 #include <fstream>
+
+#ifdef __linux__
+#	define TEMPEST_USE_POSIX 1
+#else
+#	define TEMPEST_USE_POSIX 0
+#endif
+
+#if TEMPEST_USE_POSIX
 #include <sys/sendfile.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace tempest
 {
@@ -56,7 +68,7 @@ namespace tempest
 
 	boost::optional<int> tcp_client::posix_response()
 	{
-#ifdef __linux__
+#if TEMPEST_USE_POSIX
 		int const fd = m_stream->rdbuf()->native_handle();
 		return fd;
 #else
@@ -203,23 +215,46 @@ namespace tempest
 
 	typedef boost::uintmax_t file_size;
 
+#if TEMPEST_USE_POSIX
 	namespace posix
 	{
+		struct status
+		{
+			file_size size;
+			bool is_regular;
+		};
+
 		struct file_handle final : boost::noncopyable
 		{
+			file_handle();
 			explicit file_handle(int fd);
+			file_handle(file_handle &&other);
 			~file_handle();
-			file_size get_size();
+			file_handle &operator = (file_handle &&other);
+			void swap(file_handle &other);
+			status get_status();
 			file_size send_to(int destination, file_size byte_count);
+			int handle() const;
 
 		private:
 
 			int m_fd;
 		};
 
+		file_handle::file_handle()
+		    : m_fd(-1)
+		{
+		}
+
 		file_handle::file_handle(int fd)
 			: m_fd(fd)
 		{
+		}
+
+		file_handle::file_handle(file_handle &&other)
+		    : m_fd(other.m_fd)
+		{
+			other.m_fd = -1;
 		}
 
 		file_handle::~file_handle()
@@ -230,6 +265,21 @@ namespace tempest
 			}
 		}
 
+		file_handle &file_handle::operator = (file_handle &&other)
+		{
+			if (this != &other)
+			{
+				swap(other);
+				file_handle().swap(other);
+			}
+			return *this;
+		}
+
+		void file_handle::swap(file_handle &other)
+		{
+			std::swap(m_fd, other.m_fd);
+		}
+
 		namespace
 		{
 			boost::system::system_error make_errno_exception()
@@ -238,12 +288,15 @@ namespace tempest
 			}
 		}
 
-		file_size file_handle::get_size()
+		status file_handle::get_status()
 		{
 			struct stat64 s;
 			if (fstat64(m_fd, &s) == 0)
 			{
-				return s.st_size;
+				status result;
+				result.size = s.st_size;
+				result.is_regular = S_ISREG(s.st_mode);
+				return result;
 			}
 			throw make_errno_exception();
 		}
@@ -256,6 +309,22 @@ namespace tempest
 				return static_cast<file_size>(sent);
 			}
 			throw make_errno_exception();
+		}
+
+		int file_handle::handle() const
+		{
+			return m_fd;
+		}
+
+
+		file_handle open_read(std::string const &file_name)
+		{
+			int const fd = open(file_name.c_str(), O_RDONLY | O_LARGEFILE);
+			if (fd < 0)
+			{
+				throw make_errno_exception();
+			}
+			return file_handle(fd);
 		}
 
 
@@ -285,14 +354,89 @@ namespace tempest
 			boost::optional<boost::filesystem::path> const full_path =
 			        complete_served_path(m_dir, request.file);
 
+			if (!full_path)
+			{
+				return make_not_found_response(request.file);
+			}
+
+			file_handle file = open_read(full_path->string());
+			auto const status = file.get_status();
+
+			if (status.size > std::numeric_limits<std::size_t>::max())
+			{
+				return make_not_implemented_response(request.file);
+			}
+
+			if (!status.is_regular)
+			{
+				return make_not_found_response(request.file);
+			}
+
+			http_response response;
+			response.headers["Content-Length"] =
+			        boost::lexical_cast<std::string>(status.size);
+			response.status = 200;
+			response.reason = "OK";
+			response.version = "HTTP/1.1";
+
+			if (status.size > 0)
+			{
+				response.body.resize(status.size);
+				ssize_t const read_count =
+						read(file.handle(), &response.body.front(), status.size);
+				if (read_count < 0)
+				{
+					//TODO respond with 500
+					throw make_errno_exception();
+				}
+
+				if (static_cast<file_size>(read_count) != status.size)
+				{
+					throw std::runtime_error("Could not read the file at once");
+				}
+			}
+			return response;
+		}
+	}
+#endif
+
+
+	namespace portable
+	{
+		struct file_system_directory : directory
+		{
+			explicit file_system_directory(boost::filesystem::path dir);
+			virtual http_response respond(http_request const &request) override;
+
+		private:
+
+			const boost::filesystem::path m_dir;
+		};
+
+		file_system_directory::file_system_directory(boost::filesystem::path dir)
+			: m_dir(std::move(dir))
+		{
+		}
+
+		http_response file_system_directory::respond(http_request const &request)
+		{
+			if (request.method != "GET" &&
+				request.method != "POST")
+			{
+				return make_not_implemented_response(request.file);
+			}
+
+			boost::optional<boost::filesystem::path> const full_path =
+					complete_served_path(m_dir, request.file);
+
 			if (!full_path ||
-			        !boost::filesystem::is_regular(*full_path))
+					!boost::filesystem::is_regular(*full_path))
 			{
 				return make_not_found_response(request.file);
 			}
 
 			std::ifstream file(full_path->string(),
-			                   std::ios::binary);
+							   std::ios::binary);
 			if (!file)
 			{
 				return make_not_found_response(request.file);
@@ -310,6 +454,7 @@ namespace tempest
 		}
 	}
 
+
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client,
 	                             boost::filesystem::path const &directory)
 	{
@@ -317,8 +462,16 @@ namespace tempest
 		//boost::thread because that would terminate the whole process.
 		try
 		{
+			typedef
+#if TEMPEST_USE_POSIX
+				posix::file_system_directory
+#else
+				portable::file_system_directory
+#endif
+			default_directory;
+
 			http_request request = parse_request(client->request());
-			http_response response = posix::file_system_directory(directory).respond(request);
+			http_response response = default_directory(directory).respond(request);
 			print_response(response, client->response());
 			client->response().flush();
 		}
