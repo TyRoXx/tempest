@@ -117,9 +117,13 @@ namespace tempest
 
 	http_request parse_request(std::istream &source)
 	{
+		//throw in case of errors because there is no sensible way to handle
+		//errors here
 		source.exceptions(std::ios::failbit | std::ios::badbit);
 
 		http_request request;
+
+		//GET /file HTTP/1.1\r\n
 		getline(source, request.method, ' ');
 		getline(source, request.file, ' ');
 		getline(source, request.version, '\n');
@@ -128,6 +132,8 @@ namespace tempest
 		while (source.peek() != '\r')
 		{
 			std::string key, value;
+
+			//key: value\r\n
 			getline(source, key, ':');
 			if (source.peek() == ' ')
 			{
@@ -140,6 +146,8 @@ namespace tempest
 			            std::make_pair(std::move(key), std::move(value)));
 		}
 
+		//the headers end with \r\n
+
 		//skip \r
 		source.get();
 
@@ -147,6 +155,9 @@ namespace tempest
 		{
 			throw std::runtime_error("Bad request: Missing new-line at the end");
 		}
+
+		//TODO: here comes the body..
+
 		return request;
 	}
 
@@ -161,19 +172,25 @@ namespace tempest
 
 	void print_response(http_response const &response, std::ostream &out)
 	{
+		//HTTP/1.1 200 OK\r\n
 		out << response.version << ' '
 		    << response.status << ' '
 		    << response.reason << "\r\n";
+
+		//key: value\r\n
 		for (auto const &header : response.headers)
 		{
 			out << header.first << ": " << header.second << "\r\n";
 		}
+
 		out << "\r\n";
 		out << response.body;
 	}
 
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client)
 	{
+		//We have to catch exceptions because before they propagate to
+		//boost::thread because that would terminate the whole process.
 		try
 		{
 			http_request request = parse_request(client->request());
