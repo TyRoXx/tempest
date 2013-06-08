@@ -41,7 +41,7 @@ namespace tempest
 				source.get();
 			}
 			getline(source, value, '\n');
-			trim_trailing_char(request.version, '\r');
+			trim_trailing_char(value, '\r');
 
 			request.headers.insert(
 			            std::make_pair(std::move(key), std::move(value)));
