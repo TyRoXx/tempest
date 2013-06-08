@@ -1,6 +1,7 @@
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
 #include "tempest/file_handle.hpp"
+#include "tempest/tcp_client.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
@@ -25,98 +26,6 @@
 
 namespace tempest
 {
-	struct sender
-	{
-		virtual ~sender();
-		virtual std::ostream &response() = 0;
-		virtual boost::optional<int> posix_response() = 0;
-	};
-
-	sender::~sender()
-	{
-	}
-
-	struct receiver
-	{
-		virtual ~receiver();
-		virtual std::istream &request() = 0;
-	};
-
-	receiver::~receiver()
-	{
-	}
-
-	struct abstract_client
-	{
-		virtual ~abstract_client();
-		virtual void shutdown() = 0;
-		virtual sender &get_sender() = 0;
-		virtual receiver &get_receiver() = 0;
-	};
-
-	abstract_client::~abstract_client()
-	{
-	}
-
-	struct tcp_client : public abstract_client, private sender, private receiver
-	{
-		explicit tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> socket);
-		virtual void shutdown() override;
-		virtual sender &get_sender() override;
-		virtual receiver &get_receiver() override;
-
-	private:
-
-		const std::unique_ptr<boost::asio::ip::tcp::iostream> m_stream;
-
-
-		virtual std::ostream &response() override;
-		virtual boost::optional<int> posix_response() override;
-
-		virtual std::istream &request() override;
-	};
-
-	tcp_client::tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> stream)
-	    : m_stream(std::move(stream))
-	{
-	}
-
-	void tcp_client::shutdown()
-	{
-		m_stream->rdbuf()->shutdown(boost::asio::socket_base::shutdown_both);
-	}
-
-	sender &tcp_client::get_sender()
-	{
-		return *this;
-	}
-
-	receiver &tcp_client::get_receiver()
-	{
-		return *this;
-	}
-
-	std::ostream &tcp_client::response()
-	{
-		return *m_stream;
-	}
-
-	boost::optional<int> tcp_client::posix_response()
-	{
-#if TEMPEST_USE_POSIX
-		int const fd = m_stream->rdbuf()->native_handle();
-		return fd;
-#else
-		return boost::optional<int>();
-#endif
-	}
-
-	std::istream &tcp_client::request()
-	{
-		return *m_stream;
-	}
-
-
 	struct tcp_acceptor
 	{
 		typedef boost::function<void (std::unique_ptr<abstract_client> &)>
