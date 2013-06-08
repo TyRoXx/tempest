@@ -185,7 +185,7 @@ namespace tempest
 		if (request.method != "GET" &&
 		    request.method != "POST")
 		{
-			return make_bad_request();
+			return make_not_implemented_response(request.file);
 		}
 
 		boost::optional<boost::filesystem::path> const full_path =
