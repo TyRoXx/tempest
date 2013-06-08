@@ -16,8 +16,9 @@ add_definitions(-DBOOST_TEST_DYN_LINK)
 include_directories(.)
 
 add_subdirectory(http)
+add_subdirectory(tempest)
 add_subdirectory(test)
 
 #the actual web server application
-add_executable(tempest tempest.cpp)
-target_link_libraries(tempest ${Boost_LIBRARIES} http)
+add_executable(tempestd tempest.cpp)
+target_link_libraries(tempestd tempest ${Boost_LIBRARIES})

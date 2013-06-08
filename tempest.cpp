@@ -1,5 +1,6 @@
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
+#include "tempest/file_handle.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
@@ -15,17 +16,11 @@
 #include <memory>
 #include <fstream>
 
-#ifdef __linux__
-#	define TEMPEST_USE_POSIX 1
-#else
-#	define TEMPEST_USE_POSIX 0
-#endif
-
 #if TEMPEST_USE_POSIX
-#include <sys/sendfile.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#	include <sys/sendfile.h>
+#	include <sys/types.h>
+#	include <sys/stat.h>
+#	include <unistd.h>
 #endif
 
 namespace tempest
@@ -257,139 +252,9 @@ namespace tempest
 	{
 	}
 
-	typedef boost::uintmax_t file_size;
-
 #if TEMPEST_USE_POSIX
 	namespace posix
 	{
-		struct status
-		{
-			file_size size;
-			bool is_regular;
-		};
-
-		struct file_handle final : boost::noncopyable
-		{
-			file_handle();
-			explicit file_handle(int fd);
-			file_handle(file_handle &&other);
-			~file_handle();
-			file_handle &operator = (file_handle &&other);
-			void swap(file_handle &other);
-			status get_status();
-			file_size send_to(int destination, file_size byte_count);
-			int handle() const;
-
-		private:
-
-			int m_fd;
-		};
-
-		file_handle::file_handle()
-		    : m_fd(-1)
-		{
-		}
-
-		file_handle::file_handle(int fd)
-			: m_fd(fd)
-		{
-		}
-
-		file_handle::file_handle(file_handle &&other)
-		    : m_fd(other.m_fd)
-		{
-			other.m_fd = -1;
-		}
-
-		file_handle::~file_handle()
-		{
-			if (m_fd >= 0)
-			{
-				close(m_fd);
-			}
-		}
-
-		file_handle &file_handle::operator = (file_handle &&other)
-		{
-			if (this != &other)
-			{
-				swap(other);
-				file_handle().swap(other);
-			}
-			return *this;
-		}
-
-		void file_handle::swap(file_handle &other)
-		{
-			std::swap(m_fd, other.m_fd);
-		}
-
-		namespace
-		{
-			boost::system::system_error make_errno_exception()
-			{
-				return boost::system::system_error(errno, boost::system::posix_category);
-			}
-		}
-
-		status file_handle::get_status()
-		{
-			struct stat64 s;
-			if (fstat64(m_fd, &s) == 0)
-			{
-				status result;
-				result.size = s.st_size;
-				result.is_regular = S_ISREG(s.st_mode);
-				return result;
-			}
-			throw make_errno_exception();
-		}
-
-		file_size file_handle::send_to(int destination, file_size byte_count)
-		{
-			file_size total_sent = 0;
-			file_size rest = byte_count;
-			while (rest > 0)
-			{
-				auto constexpr max_per_piece = std::numeric_limits<ssize_t>::max();
-				static_assert(static_cast<file_size>(max_per_piece) < std::numeric_limits<file_size>::max(),
-				              "any positive ssize_t must be representible with file_size for this to work");
-
-				auto const piece_length = static_cast<size_t>(
-				            std::min<file_size>(max_per_piece, rest));
-
-				ssize_t const sent = sendfile(destination, m_fd, nullptr, piece_length);
-				if (sent >= 0)
-				{
-					file_size const sent_unsigned = static_cast<size_t>(sent);
-					total_sent += sent_unsigned;
-					rest -= sent_unsigned;
-				}
-				else
-				{
-					throw make_errno_exception();
-				}
-			}
-			return total_sent;
-		}
-
-		int file_handle::handle() const
-		{
-			return m_fd;
-		}
-
-
-		file_handle open_read(std::string const &file_name)
-		{
-			int const fd = open(file_name.c_str(), O_RDONLY | O_LARGEFILE);
-			if (fd < 0)
-			{
-				throw make_errno_exception();
-			}
-			return file_handle(fd);
-		}
-
-
 		void copy_file(int source, std::ostream &sink)
 		{
 			boost::iostreams::file_descriptor_source
