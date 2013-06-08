@@ -100,7 +100,7 @@ namespace tempest
 
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client)
 	{
-		//We have to catch exceptions because before they propagate to
+		//We have to catch exceptions before they propagate to
 		//boost::thread because that would terminate the whole process.
 		try
 		{
