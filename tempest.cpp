@@ -1,6 +1,5 @@
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
-#include "http/decode_uri.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>

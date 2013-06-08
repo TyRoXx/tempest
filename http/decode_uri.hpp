@@ -71,6 +71,13 @@ namespace tempest
 
 		return dest;
 	}
+
+	template <class Container>
+	void decode_uri(Container &uri)
+	{
+		auto const new_end = decode_uri(begin(uri), end(uri), begin(uri));
+		uri.erase(new_end, end(uri));
+	}
 }
 
 #endif

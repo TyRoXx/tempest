@@ -1,4 +1,5 @@
 #include "http_request.hpp"
+#include "decode_uri.hpp"
 #include <stdexcept>
 
 
@@ -26,7 +27,10 @@ namespace tempest
 
 		//GET /file HTTP/1.1\r\n
 		getline(source, request.method, ' ');
+
 		getline(source, request.file, ' ');
+		decode_uri(request.file);
+
 		getline(source, request.version, '\n');
 		trim_trailing_char(request.version, '\r');
 
