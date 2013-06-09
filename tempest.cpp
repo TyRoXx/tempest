@@ -2,6 +2,7 @@
 #include "http/http_response.hpp"
 #include "tempest/file_handle.hpp"
 #include "tempest/tcp_client.hpp"
+#include "tempest/tcp_acceptor.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
@@ -26,57 +27,6 @@
 
 namespace tempest
 {
-	struct tcp_acceptor
-	{
-		typedef boost::function<void (std::unique_ptr<abstract_client> &)>
-			client_handler;
-
-		explicit tcp_acceptor(boost::uint16_t port,
-		                      client_handler on_client,
-		                      boost::asio::io_service &io_service);
-
-	private:
-
-		boost::asio::ip::tcp::acceptor m_impl;
-		const client_handler m_on_client;
-		std::unique_ptr<boost::asio::ip::tcp::iostream> m_next_client;
-
-		void begin_accept();
-		void handle_accept(boost::system::error_code error);
-	};
-
-	tcp_acceptor::tcp_acceptor(boost::uint16_t port,
-	                           client_handler on_client,
-	                           boost::asio::io_service &io_service)
-	    : m_impl(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4(), port))
-	    , m_on_client(std::move(on_client))
-	{
-		begin_accept();
-	}
-
-	void tcp_acceptor::begin_accept()
-	{
-		m_next_client.reset(
-		            new boost::asio::ip::tcp::iostream());
-		m_impl.async_accept(*m_next_client->rdbuf(),
-		                    boost::bind(&tcp_acceptor::handle_accept, this,
-		                                boost::asio::placeholders::error));
-	}
-
-	void tcp_acceptor::handle_accept(boost::system::error_code error)
-	{
-		if (error)
-		{
-			//TODO
-			return;
-		}
-
-		std::unique_ptr<abstract_client> client(
-		            new tcp_client(std::move(m_next_client)));
-		m_on_client(client);
-		begin_accept();
-	}
-
 	boost::optional<boost::filesystem::path>
 	complete_served_path(boost::filesystem::path const &top,
 	                     std::string const &requested)
