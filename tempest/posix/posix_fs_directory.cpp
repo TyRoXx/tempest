@@ -13,6 +13,7 @@ namespace tempest
 {
 	namespace posix
 	{
+#if TEMPEST_USE_POSIX
 		namespace
 		{
 			void copy_file(int source, std::ostream &sink)
@@ -84,5 +85,6 @@ namespace tempest
 				sender.response().flush();
 			}
 		}
+#endif
 	}
 }

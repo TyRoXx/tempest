@@ -9,9 +9,9 @@
 
 namespace tempest
 {
-#if TEMPEST_USE_POSIX
 	namespace posix
 	{
+#if TEMPEST_USE_POSIX
 		struct file_system_directory : directory
 		{
 			explicit file_system_directory(boost::filesystem::path dir);
@@ -22,8 +22,8 @@ namespace tempest
 
 			const boost::filesystem::path m_dir;
 		};
-	}
 #endif
+	}
 }
 
 
