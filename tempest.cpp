@@ -1,5 +1,4 @@
 #include <http/http_request.hpp>
-#include <tempest/file_handle.hpp>
 #include <tempest/tcp_acceptor.hpp>
 #include <tempest/portable_fs_directory.hpp>
 #include <tempest/posix/posix_fs_directory.hpp>

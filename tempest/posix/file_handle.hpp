@@ -1,8 +1,8 @@
-#ifndef TEMPEST_FILE_HANDLE_HPP
-#define TEMPEST_FILE_HANDLE_HPP
+#ifndef TEMPEST_POSIX_FILE_HANDLE_HPP
+#define TEMPEST_POSIX_FILE_HANDLE_HPP
 
 
-#include "config.hpp"
+#include <tempest/config.hpp>
 #include <boost/noncopyable.hpp>
 #include <string>
 
