@@ -11,7 +11,7 @@
 
 namespace tempest
 {
-	struct tcp_acceptor
+	struct tcp_acceptor final
 	{
 		typedef boost::function<void (std::unique_ptr<abstract_client> &)>
 			client_handler;

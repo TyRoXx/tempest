@@ -16,6 +16,13 @@ namespace tempest
 	namespace posix
 	{
 #if TEMPEST_USE_POSIX
+		status::status()
+		    : size(std::numeric_limits<file_size>::max())
+		    , is_regular(false)
+		{
+		}
+
+
 		file_handle::file_handle()
 		    : m_fd(-1)
 		{
@@ -107,6 +114,11 @@ namespace tempest
 		int file_handle::handle() const
 		{
 			return m_fd;
+		}
+
+		void swap(file_handle &left, file_handle &right)
+		{
+			left.swap(right);
 		}
 
 

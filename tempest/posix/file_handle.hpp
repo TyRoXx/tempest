@@ -12,10 +12,12 @@ namespace tempest
 	namespace posix
 	{
 #if TEMPEST_USE_POSIX
-		struct status
+		struct status final
 		{
 			file_size size;
 			bool is_regular;
+
+			status();
 		};
 
 		struct file_handle final : boost::noncopyable
@@ -35,6 +37,7 @@ namespace tempest
 			int m_fd;
 		};
 
+		void swap(file_handle &left, file_handle &right);
 
 		file_handle open_read(std::string const &file_name);
 #endif
