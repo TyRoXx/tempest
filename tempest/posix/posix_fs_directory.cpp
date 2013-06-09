@@ -19,28 +19,29 @@ namespace tempest
 			void copy_file(int source, std::ostream &sink)
 			{
 				boost::iostreams::file_descriptor_source
-				        source_device(source,
-				                      boost::iostreams::never_close_handle);
+						source_device(source,
+									  boost::iostreams::never_close_handle);
 				boost::iostreams::copy(source_device, sink);
 			}
 		}
 
 		file_system_directory::file_system_directory(boost::filesystem::path dir)
-		    : m_dir(std::move(dir))
+			: m_dir(std::move(dir))
 		{
 		}
 
 		void file_system_directory::respond(http_request const &request,
+		                                    std::string const &sub_path,
 		                                    sender &sender)
 		{
 			if (request.method != "GET" &&
-			    request.method != "POST")
+				request.method != "POST")
 			{
 				return send_in_memory_response(make_not_implemented_response(request.file), sender);
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
-			        complete_served_path(m_dir, request.file);
+					complete_served_path(m_dir, sub_path);
 
 			if (!full_path)
 			{
@@ -62,7 +63,7 @@ namespace tempest
 
 			http_response response;
 			response.headers["Content-Length"] =
-			        boost::lexical_cast<std::string>(status.size);
+					boost::lexical_cast<std::string>(status.size);
 			response.status = 200;
 			response.reason = "OK";
 			response.version = "HTTP/1.1";

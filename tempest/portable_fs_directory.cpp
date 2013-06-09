@@ -19,6 +19,7 @@ namespace tempest
 		}
 
 		void file_system_directory::respond(http_request const &request,
+		                                    std::string const &sub_path,
 		                                    sender &sender)
 		{
 			if (request.method != "GET" &&
@@ -28,7 +29,7 @@ namespace tempest
 			}
 
 			boost::optional<boost::filesystem::path> const full_path =
-					complete_served_path(m_dir, request.file);
+					complete_served_path(m_dir, sub_path);
 
 			if (!full_path ||
 					!boost::filesystem::is_regular(*full_path))
@@ -56,7 +57,7 @@ namespace tempest
 			response.status = 200;
 			response.reason = "OK";
 			response.headers["Content-Length"] =
-			        boost::lexical_cast<std::string>(file_size);
+					boost::lexical_cast<std::string>(file_size);
 
 			print_response(response, sender.response());
 			boost::iostreams::copy(file, sender.response());
