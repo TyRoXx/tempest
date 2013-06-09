@@ -1,36 +1,16 @@
-#include "http/http_request.hpp"
-#include "http/http_response.hpp"
-#include "tempest/file_handle.hpp"
-#include "tempest/tcp_client.hpp"
-#include "tempest/tcp_acceptor.hpp"
-#include "tempest/portable_fs_directory.hpp"
-#include "tempest/responses.hpp"
+#include <http/http_request.hpp>
+#include <tempest/file_handle.hpp>
+#include <tempest/tcp_acceptor.hpp>
+#include <tempest/portable_fs_directory.hpp>
 #include <tempest/posix/posix_fs_directory.hpp>
-#include <boost/asio.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
-#include <boost/function.hpp>
 #include <boost/thread.hpp>
 #include <boost/program_options.hpp>
-#include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/make_shared.hpp>
-#include <memory>
-#include <fstream>
-
-#if TEMPEST_USE_POSIX
-#	include <sys/sendfile.h>
-#	include <sys/types.h>
-#	include <sys/stat.h>
-#	include <unistd.h>
-#endif
 
 namespace tempest
 {
-
 	typedef
 #if TEMPEST_USE_POSIX
 		posix::file_system_directory
@@ -38,7 +18,6 @@ namespace tempest
 		portable::file_system_directory
 #endif
 		optimal_file_system_directory;
-
 
 	void handle_request_threaded(boost::shared_ptr<abstract_client> client,
 	                             boost::shared_ptr<directory> directory)
