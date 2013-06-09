@@ -20,5 +20,5 @@ add_subdirectory(tempest)
 add_subdirectory(test)
 
 #the actual web server application
-add_executable(tempestd tempest.cpp)
+add_executable(tempestd tempestd.cpp)
 target_link_libraries(tempestd tempest ${Boost_LIBRARIES})
