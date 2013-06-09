@@ -3,7 +3,8 @@
 #include "tempest/file_handle.hpp"
 #include "tempest/tcp_client.hpp"
 #include "tempest/tcp_acceptor.hpp"
-#include "tempest/directory.hpp"
+#include "tempest/portable_fs_directory.hpp"
+#include "tempest/responses.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
@@ -28,79 +29,6 @@
 
 namespace tempest
 {
-	boost::optional<boost::filesystem::path>
-	complete_served_path(boost::filesystem::path const &top,
-	                     std::string const &requested)
-	{
-		//TODO white-listing instead of black-listing
-		if (requested.find("..") != std::string::npos)
-		{
-			return boost::optional<boost::filesystem::path>();
-		}
-
-		return top / requested;
-	}
-
-	http_response make_bad_request()
-	{
-		http_response response;
-		response.version = "HTTP/1.1";
-		response.status = 400;
-		response.reason = "Bad Request";
-		response.headers["Content-Type"] = "text/html";
-		response.headers["Content-Length"] = "0";
-		return response;
-	}
-
-	std::pair<http_response, std::string>
-	make_not_found_response(std::string const &requested_file)
-	{
-		http_response response;
-		response.version = "HTTP/1.1";
-		response.status = 404;
-		response.reason = "Not Found";
-		response.headers["Content-Type"] = "text/html";
-
-		std::string body =
-		        "<h2>The requested file could not be found</h2>"
-		        "<p>" + requested_file + "</p>"
-		        ;
-
-		response.headers["Content-Length"] =
-		        boost::lexical_cast<std::string>(body.size());
-		return std::make_pair(std::move(response), std::move(body));
-	}
-
-	std::pair<http_response, std::string>
-	make_not_implemented_response(std::string const &requested_file)
-	{
-		http_response response;
-		response.version = "HTTP/1.1";
-		response.status = 501;
-		response.reason = "Not Implemented";
-		response.headers["Content-Type"] = "text/html";
-
-		std::string body =
-		        "<h2>could not serve the file because some required "
-		        "functionality is not implemented in the web server</h2>"
-		        "<p>" + requested_file + "</p>"
-		        ;
-
-		response.headers["Content-Length"] =
-		        boost::lexical_cast<std::string>(body.size());
-		return std::make_pair(std::move(response), std::move(body));
-	}
-
-	void send_in_memory_response(
-		std::pair<http_response, std::string> const &response,
-		sender &sender)
-	{
-		print_response(response.first, sender.response());
-
-		auto &body = response.second;
-		sender.response().write(body.data(), body.size());
-	}
-
 #if TEMPEST_USE_POSIX
 	namespace posix
 	{
@@ -185,70 +113,6 @@ namespace tempest
 		}
 	}
 #endif
-
-	namespace portable
-	{
-		struct file_system_directory : directory
-		{
-			explicit file_system_directory(boost::filesystem::path dir);
-			virtual void respond(http_request const &request,
-			                     sender &sender) override;
-
-		private:
-
-			const boost::filesystem::path m_dir;
-		};
-
-		file_system_directory::file_system_directory(boost::filesystem::path dir)
-			: m_dir(std::move(dir))
-		{
-		}
-
-		void file_system_directory::respond(http_request const &request,
-		                                    sender &sender)
-		{
-			if (request.method != "GET" &&
-				request.method != "POST")
-			{
-				return send_in_memory_response(make_not_implemented_response(request.file), sender);
-			}
-
-			boost::optional<boost::filesystem::path> const full_path =
-					complete_served_path(m_dir, request.file);
-
-			if (!full_path ||
-					!boost::filesystem::is_regular(*full_path))
-			{
-				return send_in_memory_response(make_not_found_response(request.file), sender);
-			}
-
-			std::ifstream file(full_path->string(),
-							   std::ios::binary);
-			if (!file)
-			{
-				return send_in_memory_response(make_not_found_response(request.file), sender);
-			}
-
-			file.exceptions(std::ios::failbit | std::ios::badbit);
-
-			auto const file_size = boost::filesystem::file_size(*full_path);
-			if (file_size > std::numeric_limits<std::size_t>::max())
-			{
-				return send_in_memory_response(make_not_implemented_response(request.file), sender);
-			}
-
-			http_response response;
-			response.version = "HTTP/1.1";
-			response.status = 200;
-			response.reason = "OK";
-			response.headers["Content-Length"] =
-			        boost::lexical_cast<std::string>(file_size);
-
-			print_response(response, sender.response());
-			boost::iostreams::copy(file, sender.response());
-			sender.response().flush();
-		}
-	}
 
 	typedef
 #if TEMPEST_USE_POSIX
