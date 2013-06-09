@@ -3,6 +3,7 @@
 #include "tempest/file_handle.hpp"
 #include "tempest/tcp_client.hpp"
 #include "tempest/tcp_acceptor.hpp"
+#include "tempest/directory.hpp"
 #include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
@@ -98,17 +99,6 @@ namespace tempest
 
 		auto &body = response.second;
 		sender.response().write(body.data(), body.size());
-	}
-
-	struct directory
-	{
-		virtual ~directory();
-		virtual void respond(http_request const &request,
-		                     sender &sender) = 0;
-	};
-
-	directory::~directory()
-	{
 	}
 
 #if TEMPEST_USE_POSIX
