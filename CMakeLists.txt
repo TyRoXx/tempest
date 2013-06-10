@@ -17,6 +17,9 @@ include_directories(${Boost_INCLUDE_DIR})
 #Boost test requires this definition if linked dynamically which we want to do
 add_definitions(-DBOOST_TEST_DYN_LINK)
 
+add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED)
+add_definitions(-DBOOST_FILESYSTEM_VERSION=3)
+
 include_directories(.)
 
 add_subdirectory(http)

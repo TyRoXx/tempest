@@ -32,7 +32,7 @@ namespace tempest
 					complete_served_path(m_dir, sub_path);
 
 			if (!full_path ||
-					!boost::filesystem::is_regular(*full_path))
+					!boost::filesystem::is_regular_file(*full_path))
 			{
 				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
