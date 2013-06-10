@@ -31,7 +31,8 @@ namespace tempest
 	boost::optional<int> tcp_client::posix_response()
 	{
 #if TEMPEST_USE_POSIX
-		int const fd = m_stream->rdbuf()->native_handle();
+		//Boost 1.46.1 does not know native_handle(), so we use native() here
+		int const fd = m_stream->rdbuf()->native();
 		return fd;
 #else
 		return boost::optional<int>();
