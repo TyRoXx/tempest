@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 	}
 
 	bool const favor_portability = variables.count("portable");
-	auto served_directory_absolute = boost::filesystem::canonical(served_directory);
+	auto served_directory_absolute = boost::filesystem::absolute(served_directory);
 
 	boost::shared_ptr<tempest::directory> directory_handler;
 	if (favor_portability)
