@@ -6,6 +6,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -pedantic")
 endif()
 
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+	set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -pedantic")
+endif()
+
 #Boost is used for testing, networking and multi-threading
 find_package(Boost REQUIRED unit_test_framework system thread program_options filesystem iostreams)
 include_directories(${Boost_INCLUDE_DIR})
