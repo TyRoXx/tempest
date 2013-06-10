@@ -3,6 +3,7 @@
 
 
 #include "client.hpp"
+#include <tempest/config.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/function.hpp>
@@ -11,7 +12,7 @@
 
 namespace tempest
 {
-	struct tcp_acceptor final
+	struct tcp_acceptor TEMPEST_FINAL
 	{
 		typedef boost::function<void (std::unique_ptr<abstract_client> &)>
 			client_handler;

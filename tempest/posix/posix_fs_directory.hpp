@@ -17,7 +17,7 @@ namespace tempest
 			explicit file_system_directory(boost::filesystem::path dir);
 			virtual void respond(http_request const &request,
 			                     std::string const &sub_path,
-			                     sender &sender) override;
+			                     sender &sender) TEMPEST_OVERRIDE;
 
 		private:
 

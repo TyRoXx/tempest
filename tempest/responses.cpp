@@ -6,7 +6,6 @@
 
 namespace tempest
 {
-
 	http_response make_bad_request()
 	{
 		http_response response;

@@ -13,6 +13,19 @@
 #	endif
 #endif
 
+#ifdef __GNUC__
+#	if __GNUC__ >= 4 && (__GNUC_MINOR__ >= 7 || __GNUC__ >= 5)
+#		define TEMPEST_FINAL final
+#		define TEMPEST_OVERRIDE override
+#	else
+#		define TEMPEST_FINAL
+#		define TEMPEST_OVERRIDE
+#	endif
+#else
+#	define TEMPEST_FINAL
+#	define TEMPEST_OVERRIDE
+#endif
+
 
 namespace tempest
 {

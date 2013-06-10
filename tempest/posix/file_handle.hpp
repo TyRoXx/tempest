@@ -12,7 +12,7 @@ namespace tempest
 	namespace posix
 	{
 #if TEMPEST_USE_POSIX
-		struct status final
+		struct status TEMPEST_FINAL
 		{
 			file_size size;
 			bool is_regular;
@@ -20,7 +20,7 @@ namespace tempest
 			status();
 		};
 
-		struct file_handle final : boost::noncopyable
+		struct file_handle TEMPEST_FINAL : boost::noncopyable
 		{
 			file_handle();
 			explicit file_handle(int fd);

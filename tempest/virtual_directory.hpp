@@ -3,6 +3,7 @@
 
 
 #include <tempest/directory.hpp>
+#include <tempest/config.hpp>
 #include <boost/function.hpp>
 
 
@@ -15,7 +16,7 @@ namespace tempest
 		explicit virtual_directory(sub_dir_mapping mapping);
 		virtual void respond(http_request const &request,
 		                     std::string const &sub_path,
-		                     sender &sender) override;
+		                     sender &sender) TEMPEST_OVERRIDE;
 
 	private:
 
