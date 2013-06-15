@@ -78,7 +78,7 @@ namespace tempest
 	{
 		typename Container::iterator const new_end =
 			decode_uri(boost::begin(uri), boost::end(uri), boost::begin(uri));
-		uri.erase(new_end, end(uri));
+		uri.erase(new_end, boost::end(uri));
 	}
 }
 
