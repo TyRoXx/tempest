@@ -39,10 +39,11 @@ namespace tempest
 		}
 	}
 
-	void handle_client(std::unique_ptr<abstract_client> &client,
+	void handle_client(tcp_acceptor::client_ptr &client,
 					   boost::shared_ptr<directory> directory)
 	{
-		boost::shared_ptr<abstract_client> const shared_client(client.release());
+		boost::shared_ptr<abstract_client> const shared_client =
+			movable_ptr<abstract_client>::to_shared(client);
 		boost::thread client_thread(handle_request_threaded,
 									shared_client, directory);
 		client_thread.detach();
@@ -105,7 +106,8 @@ int main(int argc, char **argv)
 	}
 
 	bool const favor_portability = variables.count("portable");
-	auto served_directory_absolute = boost::filesystem::absolute(served_directory);
+	boost::filesystem::path const served_directory_absolute =
+		boost::filesystem::absolute(served_directory);
 
 	boost::shared_ptr<tempest::directory> directory_handler;
 	if (favor_portability)

@@ -14,7 +14,8 @@ namespace tempest
 {
 	struct tcp_acceptor TEMPEST_FINAL
 	{
-		typedef boost::function<void (std::unique_ptr<abstract_client> &)>
+		typedef movable_ptr<abstract_client>::type client_ptr;
+		typedef boost::function<void (client_ptr &)>
 			client_handler;
 
 		explicit tcp_acceptor(boost::uint16_t port,
@@ -25,7 +26,7 @@ namespace tempest
 
 		boost::asio::ip::tcp::acceptor m_impl;
 		const client_handler m_on_client;
-		std::unique_ptr<boost::asio::ip::tcp::iostream> m_next_client;
+		movable_ptr<boost::asio::ip::tcp::iostream>::type m_next_client;
 
 		void begin_accept();
 		void handle_accept(boost::system::error_code error);

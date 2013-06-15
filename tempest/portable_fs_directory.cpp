@@ -37,7 +37,9 @@ namespace tempest
 				return send_in_memory_response(make_not_found_response(request.file), sender);
 			}
 
-			std::ifstream file(full_path->string(),
+			//ifstream does not support std::string in old implementations
+			//therefore c_str()
+			std::ifstream file(full_path->string().c_str(),
 							   std::ios::binary);
 			if (!file)
 			{
@@ -46,7 +48,7 @@ namespace tempest
 
 			file.exceptions(std::ios::failbit | std::ios::badbit);
 
-			auto const file_size = boost::filesystem::file_size(*full_path);
+			boost::uintmax_t const file_size = boost::filesystem::file_size(*full_path);
 			if (file_size > std::numeric_limits<std::size_t>::max())
 			{
 				return send_in_memory_response(make_not_implemented_response(request.file), sender);

@@ -62,7 +62,7 @@ namespace tempest
 	{
 		print_response(response.first, sender.response());
 
-		auto &body = response.second;
+		std::string const &body = response.second;
 		sender.response().write(body.data(), body.size());
 	}
 

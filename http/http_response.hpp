@@ -11,10 +11,12 @@ namespace tempest
 {
 	struct http_response
 	{
+		typedef std::map<std::string, std::string> header_map;
+		
 		std::string version;
 		unsigned status;
 		std::string reason;
-		std::map<std::string, std::string> headers;
+		header_map headers;
 	};
 
 	void print_response(http_response const &response, std::ostream &out);

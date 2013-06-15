@@ -3,7 +3,7 @@
 
 namespace tempest
 {
-	tcp_client::tcp_client(std::unique_ptr<boost::asio::ip::tcp::iostream> stream)
+	tcp_client::tcp_client(socket_ptr stream)
 	    : m_stream(std::move(stream))
 	{
 	}

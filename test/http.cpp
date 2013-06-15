@@ -11,7 +11,7 @@ BOOST_AUTO_TEST_CASE(http_request_parse)
 	            "\r\n"
 	            );
 
-	auto parsed = tempest::parse_request(source);
+	tempest::http_request parsed = tempest::parse_request(source);
 	BOOST_CHECK_EQUAL(parsed.method, "GET");
 	BOOST_CHECK_EQUAL(parsed.file, "/file");
 	BOOST_CHECK_EQUAL(parsed.version, "HTTP/1.0");
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(http_response_print)
 	std::ostringstream sink;
 	print_response(response, sink);
 
-	auto const printed = sink.str();
+	std::string const printed = sink.str();
 	BOOST_CHECK_EQUAL(printed,
 	                  "HTTP/1.0 404 Not Found\r\n"
 	                  "Content-Length: 3\r\n"

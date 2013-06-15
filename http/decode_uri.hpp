@@ -50,13 +50,13 @@ namespace tempest
 	{
 		while (source_begin != source_end)
 		{
-			auto const current = *source_begin++;
+			char const current = *source_begin++;
 			if (current == '%')
 			{
 				unsigned char_value = 0;
 				for (unsigned i = 0; i < 2; ++i)
 				{
-					auto const digit = detail::require_char(source_begin, source_end);
+					char const digit = detail::require_char(source_begin, source_end);
 					unsigned digit_value = detail::decode_hex(digit);
 					char_value *= 16;
 					char_value += digit_value;
@@ -78,7 +78,8 @@ namespace tempest
 	{
 		using boost::begin;
 		using boost::end;
-		auto const new_end = decode_uri(begin(uri), end(uri), begin(uri));
+		typename Container::iterator const new_end =
+			decode_uri(begin(uri), end(uri), begin(uri));
 		uri.erase(new_end, end(uri));
 	}
 }

@@ -89,11 +89,11 @@ namespace tempest
 			file_size rest = byte_count;
 			while (rest > 0)
 			{
-				auto const max_per_piece = std::numeric_limits<ssize_t>::max();
+				ssize_t const max_per_piece = std::numeric_limits<ssize_t>::max();
 				//any positive ssize_t must be representible with file_size for this to work
 				assert(static_cast<file_size>(max_per_piece) < std::numeric_limits<file_size>::max());
 
-				auto const piece_length = static_cast<size_t>(
+				size_t const piece_length = static_cast<size_t>(
 				            std::min<file_size>(max_per_piece, rest));
 
 				ssize_t const sent = sendfile(destination, m_fd, NULL, piece_length);

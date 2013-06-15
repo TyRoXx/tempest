@@ -12,7 +12,9 @@ namespace tempest
 		    << response.reason << "\r\n";
 
 		//key: value\r\n
-		BOOST_FOREACH (auto const &header, response.headers)
+		BOOST_FOREACH (
+			http_response::header_map::value_type const &header,
+			response.headers)
 		{
 			out << header.first << ": " << header.second << "\r\n";
 		}

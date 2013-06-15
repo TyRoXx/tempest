@@ -32,8 +32,7 @@ namespace tempest
 			return;
 		}
 
-		std::unique_ptr<abstract_client> client(
-		            new tcp_client(std::move(m_next_client)));
+		client_ptr client(new tcp_client(std::move(m_next_client)));
 		m_on_client(client);
 		begin_accept();
 	}

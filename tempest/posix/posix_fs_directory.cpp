@@ -49,7 +49,7 @@ namespace tempest
 			}
 
 			file_handle file = open_read(full_path->string());
-			auto const status = file.get_status();
+			posix::status const status = file.get_status();
 
 			if (status.size > std::numeric_limits<std::size_t>::max())
 			{

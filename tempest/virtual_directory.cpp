@@ -16,7 +16,7 @@ namespace tempest
 	                                std::string const &sub_path,
 	                                sender &sender)
 	{
-		auto sub_dir_begin = sub_path.begin();
+		std::string::const_iterator sub_dir_begin = sub_path.begin();
 		if (sub_dir_begin != sub_path.end())
 		{
 			if (*sub_dir_begin == '/')
@@ -24,7 +24,8 @@ namespace tempest
 				++sub_dir_begin;
 			}
 		}
-		auto sub_dir_end = std::find(sub_dir_begin, sub_path.end(), '/');
+		std::string::const_iterator const sub_dir_end =
+		    std::find(sub_dir_begin, sub_path.end(), '/');
 		std::string const sub_dir_name(sub_dir_begin, sub_dir_end);
 		directory * const sub_dir = m_mapping(sub_dir_name);
 		if (sub_dir)
