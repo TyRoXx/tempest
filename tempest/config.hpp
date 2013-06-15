@@ -58,7 +58,7 @@ namespace tempest
 		typedef std::unique_ptr<Pointee> type;
 		static boost::shared_ptr<Pointee> to_shared(type &ptr)
 		{
-			return ptr.release();
+			return boost::shared_ptr<Pointee>(ptr.release());
 		}
 #else
 		typedef boost::shared_ptr<Pointee> type;
