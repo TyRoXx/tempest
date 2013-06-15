@@ -4,6 +4,7 @@
 
 #include <iterator>
 #include <stdexcept>
+#include <cctype>
 #include <boost/range.hpp>
 
 

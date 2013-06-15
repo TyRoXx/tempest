@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 
 	if (variables.count("version"))
 	{
-		std::cout << "0.1\n";
+		std::cout << "0.2\n";
 		return 0;
 	}
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	bool const favor_portability = variables.count("portable");
+	bool const favor_portability = variables.count("portable") > 0;
 	boost::filesystem::path const served_directory_absolute =
 		boost::filesystem::absolute(served_directory);
 

@@ -10,12 +10,21 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -DBOOST_ASIO_SEPARATE_COMPILATION")
 endif()
 
+if(MSVC)
+	set(Boost_USE_STATIC_LIBS ON)
+
+	#for Boost.ASIO
+	add_definitions(/D_WIN32_WINDOWS)
+endif()
+
 #Boost is used for testing, networking and multi-threading
 find_package(Boost REQUIRED unit_test_framework system thread program_options filesystem iostreams)
 include_directories(${Boost_INCLUDE_DIR})
 
 #Boost test requires this definition if linked dynamically which we want to do
-add_definitions(-DBOOST_TEST_DYN_LINK)
+if(UNIX)
+	add_definitions(-DBOOST_TEST_DYN_LINK)
+endif()
 
 add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED)
 add_definitions(-DBOOST_FILESYSTEM_VERSION=3)
