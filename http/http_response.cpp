@@ -1,4 +1,5 @@
 #include "http_response.hpp"
+#include <boost/foreach.hpp>
 
 
 namespace tempest
@@ -11,7 +12,7 @@ namespace tempest
 		    << response.reason << "\r\n";
 
 		//key: value\r\n
-		for (auto const &header : response.headers)
+		BOOST_FOREACH (auto const &header, response.headers)
 		{
 			out << header.first << ": " << header.second << "\r\n";
 		}
