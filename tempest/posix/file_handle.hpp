@@ -23,8 +23,6 @@ namespace tempest
 
 		struct file_handle TEMPEST_FINAL : boost::noncopyable
 		{
-			BOOST_MOVABLE_BUT_NOT_COPYABLE(file_handle)
-			
 			file_handle();
 			explicit file_handle(int fd);
 			file_handle(BOOST_RV_REF(file_handle) other);
@@ -36,6 +34,8 @@ namespace tempest
 			int handle() const;
 
 		private:
+
+			BOOST_MOVABLE_BUT_NOT_COPYABLE(file_handle)
 
 			int m_fd;
 		};
