@@ -60,10 +60,10 @@ namespace tempest
 	}
 }
 
+namespace po = boost::program_options;
+
 int main(int argc, char **argv)
 {
-	namespace po = boost::program_options;
-
 	boost::uint16_t port = 8080;
 	std::string served_directory;
 

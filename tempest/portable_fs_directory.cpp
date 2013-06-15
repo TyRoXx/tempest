@@ -6,6 +6,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/iostreams/copy.hpp>
+#include <boost/move/utility.hpp>
 #include <fstream>
 
 
@@ -14,7 +15,7 @@ namespace tempest
 	namespace portable
 	{
 		file_system_directory::file_system_directory(boost::filesystem::path dir)
-			: m_dir(std::move(dir))
+			: m_dir(boost::move(dir))
 		{
 		}
 

@@ -2,12 +2,13 @@
 #include "responses.hpp"
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
+#include <boost/move/utility.hpp>
 
 
 namespace tempest
 {
 	virtual_directory::virtual_directory(sub_dir_mapping mapping)
-	    : m_mapping(std::move(mapping))
+	    : m_mapping(boost::move(mapping))
 	{
 		assert(m_mapping);
 	}

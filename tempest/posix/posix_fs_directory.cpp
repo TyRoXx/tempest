@@ -26,7 +26,7 @@ namespace tempest
 		}
 
 		file_system_directory::file_system_directory(boost::filesystem::path dir)
-			: m_dir(std::move(dir))
+			: m_dir(boost::move(dir))
 		{
 		}
 

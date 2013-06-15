@@ -1,6 +1,7 @@
 #include "http_request.hpp"
 #include "decode_uri.hpp"
 #include <stdexcept>
+#include <boost/move/utility.hpp>
 
 
 namespace tempest
@@ -49,7 +50,7 @@ namespace tempest
 			trim_trailing_char(value, '\r');
 
 			request.headers.insert(
-			            std::make_pair(std::move(key), std::move(value)));
+			            std::make_pair(boost::move(key), boost::move(value)));
 		}
 
 		//the headers end with \r\n

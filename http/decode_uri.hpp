@@ -62,7 +62,7 @@ namespace tempest
 					char_value += digit_value;
 				}
 
-				*dest++ = static_cast<decltype(current)>(char_value);
+				*dest++ = static_cast<char>(char_value);
 			}
 			else
 			{

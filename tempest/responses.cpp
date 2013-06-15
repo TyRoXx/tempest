@@ -2,6 +2,7 @@
 #include "client.hpp"
 #include "http/http_response.hpp"
 #include <boost/lexical_cast.hpp>
+#include <boost/move/utility.hpp>
 
 
 namespace tempest
@@ -33,7 +34,7 @@ namespace tempest
 
 		response.headers["Content-Length"] =
 		        boost::lexical_cast<std::string>(body.size());
-		return std::make_pair(std::move(response), std::move(body));
+		return std::make_pair(boost::move(response), boost::move(body));
 	}
 
 	std::pair<http_response, std::string>
@@ -53,7 +54,7 @@ namespace tempest
 
 		response.headers["Content-Length"] =
 		        boost::lexical_cast<std::string>(body.size());
-		return std::make_pair(std::move(response), std::move(body));
+		return std::make_pair(boost::move(response), boost::move(body));
 	}
 
 	void send_in_memory_response(

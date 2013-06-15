@@ -7,7 +7,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-	set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -pedantic")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")
 endif()
 
 #Boost is used for testing, networking and multi-threading

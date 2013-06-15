@@ -4,6 +4,7 @@
 
 #include <tempest/config.hpp>
 #include <boost/noncopyable.hpp>
+#include <boost/move/move.hpp>
 #include <string>
 
 
@@ -22,11 +23,13 @@ namespace tempest
 
 		struct file_handle TEMPEST_FINAL : boost::noncopyable
 		{
+			BOOST_MOVABLE_BUT_NOT_COPYABLE(file_handle)
+			
 			file_handle();
 			explicit file_handle(int fd);
-			file_handle(file_handle &&other);
+			file_handle(BOOST_RV_REF(file_handle) other);
 			~file_handle();
-			file_handle &operator = (file_handle &&other);
+			file_handle &operator = (BOOST_RV_REF(file_handle) other);
 			void swap(file_handle &other);
 			status get_status();
 			file_size send_to(int destination, file_size byte_count);

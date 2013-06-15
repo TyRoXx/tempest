@@ -1,10 +1,11 @@
 #include "tcp_client.hpp"
+#include <boost/move/utility.hpp>
 
 
 namespace tempest
 {
 	tcp_client::tcp_client(socket_ptr stream)
-	    : m_stream(std::move(stream))
+	    : m_stream(boost::move(stream))
 	{
 	}
 

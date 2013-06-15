@@ -2,6 +2,7 @@
 #include "tcp_client.hpp"
 #include <boost/bind.hpp>
 #include <boost/asio/placeholders.hpp>
+#include <boost/move/utility.hpp>
 
 
 namespace tempest
@@ -10,7 +11,7 @@ namespace tempest
 	                           client_handler on_client,
 	                           boost::asio::io_service &io_service)
 	    : m_impl(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4(), port))
-	    , m_on_client(std::move(on_client))
+	    , m_on_client(boost::move(on_client))
 	{
 		begin_accept();
 	}
@@ -32,7 +33,7 @@ namespace tempest
 			return;
 		}
 
-		client_ptr client(new tcp_client(std::move(m_next_client)));
+		client_ptr client(new tcp_client(boost::move(m_next_client)));
 		m_on_client(client);
 		begin_accept();
 	}

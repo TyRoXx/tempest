@@ -33,7 +33,7 @@ namespace tempest
 		{
 		}
 
-		file_handle::file_handle(file_handle &&other)
+		file_handle::file_handle(BOOST_RV_REF(file_handle) other)
 		    : m_fd(other.m_fd)
 		{
 			other.m_fd = -1;
@@ -47,7 +47,7 @@ namespace tempest
 			}
 		}
 
-		file_handle &file_handle::operator = (file_handle &&other)
+		file_handle &file_handle::operator = (BOOST_RV_REF(file_handle) other)
 		{
 			if (this != &other)
 			{
