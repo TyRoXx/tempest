@@ -10,7 +10,8 @@ namespace tempest
 		void trim_trailing_char(std::string &str, char trailing)
 		{
 			if (!str.empty() &&
-					str.back() == trailing)
+			    //use rbegin instead of back to support old implementations
+			    *str.rbegin() == trailing)
 			{
 				str.resize(str.size() - 1);
 			}

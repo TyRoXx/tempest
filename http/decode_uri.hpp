@@ -4,6 +4,7 @@
 
 #include <iterator>
 #include <stdexcept>
+#include <boost/range.hpp>
 
 
 namespace tempest
@@ -75,6 +76,8 @@ namespace tempest
 	template <class Container>
 	void decode_uri(Container &uri)
 	{
+		using boost::begin;
+		using boost::end;
 		auto const new_end = decode_uri(begin(uri), end(uri), begin(uri));
 		uri.erase(new_end, end(uri));
 	}
