@@ -2,7 +2,7 @@
 #include "client.hpp"
 #include "http/http_response.hpp"
 #include <boost/lexical_cast.hpp>
-#include <boost/move/utility.hpp>
+#include <boost/move/move.hpp>
 
 
 namespace tempest

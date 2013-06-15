@@ -6,7 +6,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/iostreams/copy.hpp>
-#include <boost/move/utility.hpp>
+#include <boost/move/move.hpp>
 #include <fstream>
 
 

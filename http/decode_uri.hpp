@@ -76,10 +76,8 @@ namespace tempest
 	template <class Container>
 	void decode_uri(Container &uri)
 	{
-		using boost::begin;
-		using boost::end;
 		typename Container::iterator const new_end =
-			decode_uri(begin(uri), end(uri), begin(uri));
+			decode_uri(boost::begin(uri), boost::end(uri), boost::begin(uri));
 		uri.erase(new_end, end(uri));
 	}
 }

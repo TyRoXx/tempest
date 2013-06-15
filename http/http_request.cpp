@@ -1,7 +1,7 @@
 #include "http_request.hpp"
 #include "decode_uri.hpp"
 #include <stdexcept>
-#include <boost/move/utility.hpp>
+#include <boost/move/move.hpp>
 
 
 namespace tempest

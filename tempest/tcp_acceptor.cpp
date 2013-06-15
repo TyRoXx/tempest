@@ -2,7 +2,7 @@
 #include "tcp_client.hpp"
 #include <boost/bind.hpp>
 #include <boost/asio/placeholders.hpp>
-#include <boost/move/utility.hpp>
+#include <boost/move/move.hpp>
 
 
 namespace tempest

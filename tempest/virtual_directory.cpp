@@ -2,7 +2,7 @@
 #include "responses.hpp"
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
-#include <boost/move/utility.hpp>
+#include <boost/move/move.hpp>
 
 
 namespace tempest
