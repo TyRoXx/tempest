@@ -38,3 +38,9 @@ add_subdirectory(test)
 #the actual web server application
 add_executable(tempestd tempestd.cpp)
 target_link_libraries(tempestd tempest ${Boost_LIBRARIES})
+
+file(GLOB headers "http/*.hpp")
+install(FILES ${headers} DESTINATION "include/http")
+
+file(GLOB headers "tempest/*.hpp")
+install(FILES ${headers} DESTINATION "tempest/http")
