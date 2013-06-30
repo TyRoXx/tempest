@@ -29,7 +29,7 @@
 #		define TEMPEST_IS_MOVABLE_PTR_UNIQUE 0
 #	endif
 
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && (_MSC_VER >= 1600) //VS10
 
 #	define TEMPEST_FINAL
 #	define TEMPEST_OVERRIDE
