@@ -34,6 +34,7 @@ include_directories(.)
 
 add_subdirectory(http)
 add_subdirectory(tempest)
+add_subdirectory(examples)
 add_subdirectory(test)
 
 #the actual web server application
